@@ -1,11 +1,12 @@
 # RAP-seq Read Processing, Alignment and Peak Calling
 RAP-seq NGS data processing involves 7 major steps that takes as input FASTQ Files and provides as output a BED File representing genomic coordinates of candidate RBP binding sites and their relative signals and significance in each of the RBP replicate binding assay and the two controls, namely the Input and Tag only libraries. These candidate binding sites need to be further filtered for corrected significance and fold change thresholds.
 
-## 1. Read Processing
+## 1. Read Processing -> A.trim_PE.sh
 The first step regards removal of the NEXTFLEX v3 small RNA library preparation kit adapters using A.trim_PE.sh. This bash script makes use of cutadapt to trim the adapters, perform a base quality filter and output all reads that are 20 or more nucleotides long. The length filter accounts for the presence of the library prep kit inserted UMIs at the 5' and 3' end of the reads.
 
-## 2. UMI extraction 
+## 2. UMI extraction -> B.extract_UMIs.sh
 B.extract_UMIs.sh makes use of awk to remove the first 4 bases of both read 1 and read 2, paste them together and append the 8 nucleotide UMI to both read 1 and read 2 read names.
 
-## 3. Removal of rRNA and tRNA mapping reads
+## 3. Removal of rRNA and tRNA mapping reads -> C.hisat2_remov_rRNA_tRNA.sh
+
 
