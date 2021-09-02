@@ -4,5 +4,5 @@ RAP-seq NGS data processing involves 7 major steps that takes as input FASTQ Fil
 ## 1. Read Processing
 The first step regards removal of the NEXTFLEX v3 small RNA library preparation kit adapters using A.trim_PE.sh. This bash script makes use of cutadapt to trim the adapters, perform a base quality filter and output all reads that are 20 or more nucleotides long. The length filter accounts for the presence of the library prep kit inserted UMIs at the 5' and 3' end of the reads.
 
-## 2. UMI extraction
+## 2. UMI extraction 
 
