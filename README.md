@@ -42,15 +42,15 @@ To the 14 column bed file produced in section 8, two more columns will be added 
 
 ## Peak Annotation and Filtering
 #### 10. Filter and Annotate Peaks -> L.Peak_annotation_n_filtering.R
-In order to annotate and filter the final candidate coordinates from section 9, R is used to compute enrichments and correct the p-values computed by macs2 (section 6) to filter the coordinates. The R package GenomicFeatures is used to parse a gencode GTF annotation file and annotate the filtered candidate coordinates with gene names, gene IDs and relative RNA features (CDS, ncRNA, introns, etc.). In order to ensure unique annotations, a feature priority is given in the following order: CDS > 3'UTR > 5'UTR > ncRNA > intron. The L.Peak_annotation_n_filtering.R is an R script that contains all the code necessary to load all R packages used in the RAP-seq manuscript and to read in the candidate coordinates from section 9 and output a final filtered and annotated 32 column tabular file containing RBP binding sites. The tabular file has the following columns:
+In order to annotate and filter the final candidate coordinates from section 9, R is used to compute enrichments and correct the p-values computed by macs2 (section 6) to filter the coordinates. The R package GenomicFeatures is used to parse a gencode GTF annotation file and annotate the filtered candidate coordinates with gene names, gene IDs and relative RNA features (CDS, ncRNA, introns, etc.). In order to ensure unique annotations, a feature priority is given in the following order: CDS > 3'UTR > 5'UTR > ncRNA > intron. The L.Peak_annotation_n_filtering.R is an R script that contains all the code necessary to load all R packages used in the RAP-seq manuscript and to read in the candidate coordinates from section 9 and output a final filtered and annotated 32 column tabular file containing RBP binding sites and the final output of the RAP-seq pipeline. The tabular file has the following columns:
 01. Chromosome 
 02. Start 
 03. End 
-04. Peak_ID 
-05. RBP, 
+04. Peak ID 
+05. Name of the RNA Binding Protein profiled 
 06. Strand 
-07. Summit_start 
-08. Summit_end
+07. Summit start 
+08. Summit end
 09. Replicate 1 normalized pileup signal
 10. Replicate 2 normalized pileup signal
 11. Halo normalized pileup signal
@@ -66,10 +66,10 @@ In order to annotate and filter the final candidate coordinates from section 9, 
 21. The average Fold Change over Halo 
 22. The average Fold Change over Input
 23. Binding Score = The average Fold Change considering both Halo and Input controls weighed by the log2 normailzed average pileup signals of both replicates
-24. Gene ENSEMBL ID, 
+24. Gene ENSEMBL ID 
 25. Gene Name
 26. Gene Type 
-27. RNA fetaure (intron, CDS, UTR, etc) 
+27. RNA feature (intron, CDS, UTR, etc) 
 28. Gene Binding Score = The sum of all Binding Scores of all Binding Sites mapping to one gene 
 29. Local IDR computed using the replicate -log10pvalues 
 30. Global IDR computed using the replicate -log10pvalues
