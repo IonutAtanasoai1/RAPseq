@@ -31,7 +31,8 @@ Considering that the replicates are used to identify candidate regions that will
 G.get_pvals_from_bedgraphs.sh takes as input the pileups computed by bedtools genomecov in section 5 of this readme file and subtracts the Input signal from both RBP and HaloTag libraries and then used macs2 bdgcmp with the argument -m ppois to compute the significance of signal enrichments in the RBP libraries over the HaloTag control library.
 
 #### 3. Peak Calling (Assign Strand And Count Mates) -> H.1.run_mean_summits.sh, H.2.mean_summits.R, I.strand_read_counts.sh
-
+The first 2 scripts (H.1.run_mean_summits.sh and H.2.mean_summits.R, both written by Sofia Papavasileiou) are used to call and run R from bash to compute the average location of the summit based on the two replicate summits. It outputs a 5 column bed file with the 4th and the 5th column being the original start and end of the candidate coordinates and the 2nd and 3rd column the locations of the mean summit between the 2 replicates +/- 4 nucleotides. 
+I.strand_read_counts.sh takes the bed file from above and its corresponding bam file and uses bedtools bamtobed to output one bed file for all read 1 (read 1 is the sense of the RNA molecule) mapping to the minus strand and one to the plus strand. bedtools map is then used to count the reads at each summit for both strands and if the reads on one strand are 10 times more then on the other then that strand is assigned to the respective summit and this nees to held tru for both replicates. The output is a bed file with the first 5 columns from the fist mean_summits.R and the 6th column representing the strand, the 7th the number of read 1 reads counted for replicate one and the 8th column those for replicate two. 
 
 #### 4. Peak Calling (Map Signals To Candidate Coordinates) -> J.scoring_candidate_coordinates.sh
 
