@@ -30,8 +30,8 @@ Considering that the replicates are used to identify candidate regions that will
 ### 2. Peak Calling (Compute P-values) -> G.get_pvals_from_bedgraphs.sh
 G.get_pvals_from_bedgraphs.sh takes as input the pileups computed by bedtools genomecov in section 5 of this readme file and subtracts the Input signal from both RBP and HaloTag libraries and then used macs2 bdgcmp with the argument -m ppois to compute the significance of signal enrichments in the RBP libraries over the HaloTag control library.
 
-### 3. Peak Calling (Assign Strand And Count Mates) -> I.1.run_mean_summits.sh, I.2.mean_summits.R, J.strand_read_counts.sh
+### 3. Peak Calling (Assign Strand And Count Mates) -> H.1.run_mean_summits.sh, H.2.mean_summits.R, I.strand_read_counts.sh
 
 
-### 4. Peak Calling (Map Signals To Candidate Coordinates) -> H.scoring_candidate_coordinates.sh
+### 4. Peak Calling (Map Signals To Candidate Coordinates) -> J.scoring_candidate_coordinates.sh
 
