@@ -1,0 +1,992 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+
+library(ChIPpeakAnno)
+library(edgeR)
+library(ggfortify)
+library(tidyverse)
+library(scales)
+library(ggplot2)
+library(dendextend)
+library(dichromat)
+library(reshape2) 
+library(dplyr)
+library(stringr)
+library(GenomicRanges)
+library(GenomicFeatures)
+library(gplots)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(org.Dr.eg.db)
+#library(vioplot)
+library(tidyr)
+library(gtools)
+library(ggrepel)
+library(ggbeeswarm)
+library(ReactomePA)
+library(VennDiagram)
+library(LSD)
+library(gridExtra)
+library(UpSetR)
+library(ggpubr)
+library(GenomicScores)
+library(phastCons7way.UCSC.hg38)
+library(phastCons100way.UCSC.hg38)
+library(corrplot)
+library(ggforce)
+library(idr)
+library(GGally)
+library(venneuler)
+library(eulerr)
+library(ggseqlogo)
+library(robustbase)
+
+
+acqua_greens <- c("#04493F","#02655B", "#08756A", "#0C8074", "#179286", "#25A296", "#3EB3A7", "#5FCBC1", "#84E2D9", "#A4F2EA", "#C4FCF6", "#E2FFFD")
+acqua_blues  <- c("#02465B","#015666", "#0C6476", "#157589", "#1E8498", "#4397A8", "#4FB0C3", "#70C2D2", "#8DDBEB", "#C1EDF6", "#D7F8FF")
+greys <- c("#202020", "#404040", "#606060", "#808080", "#A0A0A0", "#C0C0C0", "#E0E0E0", "#FFFFFF")
+reds <- c("#C10303", "#D83535", "#E95F5F", "#F08686", "#FAAEAE")
+pinks <- c("#660000", "#990000", "#CC0000", "#FF0000", "#FF6666", "#FF9999","#FFCECE")
+yellows <- c( "#9C8803", "#A59213", "#B09D1F", "#BAA82F", "#C6B441", "#D0BF53", "#DACB69", "#E4D782", "#EEE39D", "#FAF2BA", "#FFFBD1")
+oranges <- c( "#A15000", "#CE7012", "#E47B12", "#F07D09", "#FF8B15", "#FFA141","#FFCC99")
+
+
+
+
+
+
+
+txdb <- makeTxDbFromGFF(file = "/Users/ionutatanasoai/Documents/RAPseq_Manuscript/Annotations/gencode.v37.annotation.gtf", format = "gtf")
+Gencode_v33_IDs <- read.table(file = "/Users/ionutatanasoai/Documents/RAPseq_Manuscript/Annotations/gencode.v37.IDs.txt")
+colnames(Gencode_v33_IDs) <- c("gene_ID","transcript_ID","gene_strand","gene_name","gene_type")
+
+
+Intron_GR <- intronsByTranscript(txdb, use.names = TRUE)
+Exon_GR <- exonsBy(txdb, by = "tx", use.names = TRUE)
+ThreeUTR_GR <- threeUTRsByTranscript(txdb, use.names = TRUE)
+FiveUTR_GR <- fiveUTRsByTranscript(txdb, use.names = TRUE)
+CDS_GR <- cdsBy(txdb, by = "tx", use.names = TRUE)
+pass_1 <- subsetByOverlaps(Exon_GR,CDS_GR,invert = T)
+pass_2 <- subsetByOverlaps(pass_1,ThreeUTR_GR,invert = T)
+Exon_GR <- subsetByOverlaps(pass_2,FiveUTR_GR,invert = T)
+rm(pass_1)
+rm(pass_2)
+
+
+Introns <- as.data.frame(Intron_GR)[,c(3,4,5,2,7)]
+Introns$feature <- rep("intron",nrow(Introns))
+Exons <- as.data.frame(Exon_GR)[,c(3,4,5,2,7)]
+Exons$feature <- rep("exon",nrow(Exons))
+CDSs <- as.data.frame(CDS_GR)[,c(3,4,5,2,7)]
+CDSs$feature <- rep("CDS",nrow(CDSs))
+FiveUTRs <- as.data.frame(FiveUTR_GR)[,c(3,4,5,2,7)]
+FiveUTRs$feature <- rep("5UTR",nrow(FiveUTRs))
+ThreeUTRs <- as.data.frame(ThreeUTR_GR)[,c(3,4,5,2,7)]
+ThreeUTRs$feature <- rep("3UTR",nrow(ThreeUTRs))
+Features <- rbind(Introns, Exons, CDSs, FiveUTRs, ThreeUTRs)
+colnames(Features) <- c("chr","start","end","transcript_ID","feature_strand","feature")
+
+
+Features <- merge(Features,Gencode_v33_IDs,by = "transcript_ID")
+Features$gene_ID <- as.character(Features$gene_ID)
+Features <- Features[,c(2,3,4,7,6,5,9,10)]
+colnames(Features) <- c("chr","start","end","gene_ID","feature","strand","gene_name","gene_type")
+Features$IDs <- paste( Features[,1],Features[,2],Features[,3],Features[,4],Features[,5],Features[,6], Features[,7], sep = "_")
+Features <- Features[duplicated(Features$IDs) == "FALSE",]
+Features <- Features[,1:8]
+Features$chr <- as.character(Features$chr)
+Features$strand <- as.character(Features$strand)
+
+Features_GR <-  makeGRangesFromDataFrame(Features[,1:6])
+colnames(Features) <- c("chr","start","end","gene_ID","feature","gene_strand","gene_name","gene_type")
+Features$gene_type <- as.character(Features$gene_type)
+
+
+```
+
+
+
+
+
+
+```{r}
+
+
+
+
+options(scipen = 999,dplyr.summarise.inform = FALSE)
+
+PATH <- "/Users/ionutatanasoai/Documents/RAPseq_Manuscript/NEW_PEAKS/P102/"
+PEAKS <- list.files(path = PATH)
+Names <- unlist(str_split(PEAKS,"\\.scor"))[grep("bed",unlist(str_split(PEAKS,"\\.scor")),invert = T)]
+Tables <- list()
+  
+
+
+
+for (i in 1:length(Names)){
+  Tables[[i]] <- as.data.frame(read.table(paste(PATH,PEAKS[i],sep = ""), stringsAsFactors = F))
+  colnames(Tables[[i]]) <- c("chr","Summit_start","Summit_end","start","end","strand","Count_rep1","Count_rep2","minuslog10pval_rep1","minuslog10pval_rep2","Rep1","Rep2","Halo","Input","minusInput_rep1","minusInput_rep2","minusInput_Halo","positive_fa","negative_fa","RPM_rep1","RPM_rep2","RPM_Halo","RPM_Input")
+}
+
+names(Tables) <- Names
+
+mu <- 2.6
+sigma <- 1.3
+rho <- 0.8
+p <- 0.7
+
+
+for(i in Names){
+  #print(paste(i,nrow(Tables[[i]])))
+ 
+  x<-Tables[[i]][,c("minuslog10pval_rep1","minuslog10pval_rep2")]
+  idr.out <- est.IDR(x, mu, sigma, rho, p, eps=0.001, max.ite=30)
+  Tables[[i]]$local_idr <- idr.out$idr
+  Tables[[i]]$global_IDR <- idr.out$IDR
+  
+  Tables[[i]]$RBP <- rep(i,nrow(Tables[[i]]))
+  Tables[[i]]$Peak_ID <- paste(  Tables[[i]]$chr,Tables[[i]]$start,Tables[[i]]$end,Tables[[i]]$strand, sep = "_" )
+  Tables[[i]]$Summit_start <- Tables[[i]]$Summit_start + 4
+  Tables[[i]]$Summit_end <- Tables[[i]]$Summit_start + 1 
+  Tables[[i]]$IDs <- paste(  Tables[[i]]$chr,Tables[[i]]$Summit_start,Tables[[i]]$Summit_end,Tables[[i]]$strand, sep = "_" )
+
+  #Tables[[i]]$Rep1 <- Tables[[i]]$Rep1 + 1
+  #Tables[[i]]$Rep2 <- Tables[[i]]$Rep2 + 1
+  Tables[[i]]$Halo[Tables[[i]]$Halo == 0] <- min(Tables[[i]][Tables[[i]]$Halo!=0,"Halo"])
+  Tables[[i]]$Input[Tables[[i]]$Input == 0] <- min(Tables[[i]][Tables[[i]]$Input!=0,"Input"])
+  Tables[[i]]$minusInput_rep1 <- Tables[[i]]$minusInput_rep1 + 1
+  Tables[[i]]$minusInput_rep2 <- Tables[[i]]$minusInput_rep2 + 1
+  Tables[[i]]$minusInput_Halo <- Tables[[i]]$minusInput_Halo + 1
+  Tables[[i]]$RPM_rep1 <- Tables[[i]]$RPM_rep1 
+  Tables[[i]]$RPM_rep2 <- Tables[[i]]$RPM_rep2
+  Tables[[i]]$RPM_Halo[Tables[[i]]$RPM_Halo == 0] <- min(Tables[[i]][Tables[[i]]$RPM_Halo!=0,"RPM_Halo"])
+  
+  Tables[[i]]$minuslog10FDR_rep1 <- round(-log10(p.adjust(10^-Tables[[i]]$minuslog10pval_rep1, method = "BH")),5)
+  Tables[[i]]$minuslog10FDR_rep2 <- round(-log10(p.adjust(10^-Tables[[i]]$minuslog10pval_rep2, method = "BH")),5)
+  
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$minuslog10FDR_rep1 >= 1.30103,]
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$minuslog10FDR_rep2 >= 1.30103,]  
+  
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$minuslog10pval_rep1 >= 4,]
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$minuslog10pval_rep2 >= 4,]
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  
+  ################################### trial #############################################
+  
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$Halo/Tables[[i]]$Input < 2,]
+  #Tables[[i]] <- Tables[[i]][Tables[[i]]$RPM_Halo/Tables[[i]]$RPM_Input < 2,]
+  #print(paste(i,nrow(Tables[[i]])))
+
+  #######################################################################################
+  
+  Tables[[i]]$FCH_rep1 <- Tables[[i]]$Rep1/Tables[[i]]$Halo
+  Tables[[i]]$FCH_rep2 <- Tables[[i]]$Rep2/Tables[[i]]$Halo
+  Tables[[i]]$FCI_rep1 <- Tables[[i]]$Rep1/Tables[[i]]$Input
+  Tables[[i]]$FCI_rep2 <- Tables[[i]]$Rep2/Tables[[i]]$Input
+  Tables[[i]]$FCmean_rep1 <- (Tables[[i]]$FCH_rep1 + Tables[[i]]$FCI_rep1)/2
+  Tables[[i]]$FCmean_rep2 <- (Tables[[i]]$FCH_rep2 + Tables[[i]]$FCI_rep2)/2
+  Tables[[i]]$BS_rep1 <- log2(Tables[[i]]$Rep1) * Tables[[i]]$FCmean_rep1
+  Tables[[i]]$BS_rep2 <- log2(Tables[[i]]$Rep2) * Tables[[i]]$FCmean_rep2
+  Tables[[i]]$BS <- (Tables[[i]]$BS_rep1 + Tables[[i]]$BS_rep2)/2
+  Tables[[i]]$Mean_FCH <- (Tables[[i]]$FCH_rep1 + Tables[[i]]$FCH_rep2)/2
+  Tables[[i]]$Mean_FCI <- (Tables[[i]]$FCI_rep1 + Tables[[i]]$FCI_rep2)/2
+  Tables[[i]]$FCHrpm_rep1 <- Tables[[i]]$RPM_rep1/Tables[[i]]$RPM_Halo 
+  Tables[[i]]$FCHrpm_rep2 <- Tables[[i]]$RPM_rep2/Tables[[i]]$RPM_Halo
+  
+  Tables[[i]]$FCHminI_rep1 <- Tables[[i]]$minusInput_rep1/Tables[[i]]$minusInput_Halo
+  Tables[[i]]$FCHminI_rep2 <- Tables[[i]]$minusInput_rep2/Tables[[i]]$minusInput_Halo
+  
+
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$FCH_rep1 > 1 & Tables[[i]]$FCH_rep2 > 1,]
+  #Tables[[i]] <- Tables[[i]][Tables[[i]]$FCHrpm_rep1 >= 2 & Tables[[i]]$FCHrpm_rep2 >= 2,]
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$FCI_rep1 > 1 & Tables[[i]]$FCI_rep2 > 1,]
+  
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  Tables[[i]]$positive_fa_check <- str_sub(Tables[[i]]$positive_fa,85,115)
+  Gs <- str_count(Tables[[i]]$positive_fa_check,"G") / (115-85) 
+  As <- str_count(Tables[[i]]$positive_fa_check,"A") / (115-85) 
+  Ts <- str_count(Tables[[i]]$positive_fa_check,"T") / (115-85) 
+  Cs <- 1 - Gs - As - Ts
+  GAs <- Gs + As
+  Tables[[i]]$GAs <- GAs
+  Tables[[i]]$GTs <- Gs + Ts
+  Tables[[i]]$GCs <- Gs + Cs
+  Tables[[i]]$GATs <- Gs + As + Ts
+  GAs <- Gs + As
+  GTs <- Gs + Ts
+  GATs <- Gs + As + Ts
+  #print(paste(i,nrow(Tables[[i]])))
+
+ 
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$GAs <= 0.7,]
+  #Tables[[i]] <- Tables[[i]][Tables[[i]]$GATs <= 0.9,]
+  #print(paste(i,nrow(Tables[[i]])))
+
+
+
+  
+  GR <- makeGRangesFromDataFrame(Tables[[i]][,c("chr","Summit_start","Summit_end","Peak_ID","RBP","strand")])
+  
+    
+  Tables[[i]] <- Tables[[i]][as.data.frame(findOverlaps(GR,Features_GR, type = "within"))[,1],]
+  Annots <- Features[as.data.frame(findOverlaps(GR,Features_GR, type = "within"))[,2],][,4:8]
+  Tables[[i]] <- cbind(Tables[[i]],Annots)
+  Tables[[i]]$strand <- as.character(Tables[[i]]$strand)
+  Tables[[i]]$gene_strand <- as.character(Tables[[i]]$gene_strand)
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$strand == Tables[[i]]$gene_strand, ]
+  Tables[[i]]$IDs <- paste( Tables[[i]]$IDs, Tables[[i]]$feature, Tables[[i]]$gene_ID, sep = "_" )
+  Tables[[i]] <- Tables[[i]][duplicated(Tables[[i]]$IDs) == "FALSE",]
+  
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  Tables[[i]]$IDs <- paste( Tables[[i]]$chr,Tables[[i]]$Summit_start,Tables[[i]]$Summit_end,Tables[[i]]$strand, Tables[[i]]$feature, sep = "_" )
+  Tables[[i]] <- Tables[[i]][duplicated(Tables[[i]]$IDs) == "FALSE",]
+  
+  #print(paste(i,nrow(Tables[[i]])))  
+  
+  
+  
+  Tables[[i]]$IDs <- paste( Tables[[i]]$chr,Tables[[i]]$Summit_start,Tables[[i]]$Summit_end,Tables[[i]]$strand, sep = "_" )
+  Tables[[i]]$Unique_Anno <-  ave( seq_along(Tables[[i]]$IDs), Tables[[i]]$IDs, FUN = length ) == 1
+  Tables[[i]] <- Tables[[i]][(Tables[[i]]$Unique_Anno == "FALSE" & Tables[[i]]$feature == "intron") == "FALSE" ,]
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  Tables[[i]]$Unique_Anno <-  ave( seq_along(Tables[[i]]$IDs), Tables[[i]]$IDs, FUN = length ) == 1
+  Tables[[i]] <- Tables[[i]][(Tables[[i]]$Unique_Anno == "FALSE" & Tables[[i]]$feature == "exon") == "FALSE" ,]
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  Tables[[i]]$Unique_Anno <-  ave( seq_along(Tables[[i]]$IDs), Tables[[i]]$IDs, FUN = length ) == 1
+  Tables[[i]] <- Tables[[i]][(Tables[[i]]$Unique_Anno == "FALSE" & Tables[[i]]$feature == "5UTR") == "FALSE" ,]
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  Tables[[i]]$Unique_Anno <-  ave( seq_along(Tables[[i]]$IDs), Tables[[i]]$IDs, FUN = length ) == 1
+  Tables[[i]] <- Tables[[i]][(Tables[[i]]$Unique_Anno == "FALSE" & Tables[[i]]$feature == "3UTR") == "FALSE" ,]
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  Tables[[i]]$peak_uniqueness <- ave( seq_along(Tables[[i]]$Peak_ID), Tables[[i]]$Peak_ID, FUN = length ) == 1
+  #print(paste(i,nrow(Tables[[i]])))
+
+    
+  AAA <- Tables[[i]][,c("gene_ID","BS")]
+  BBB <- AAA %>% group_by(gene_ID) %>% summarise(Gene_BI = sum(BS))
+  BBB <- as.data.frame(BBB)
+
+  Tables[[i]] <- Tables[[i]][grep("pseudogene",Tables[[i]]$gene_type,invert = T),]
+  Tables[[i]] <- Tables[[i]][grep("tRNA|rRNA",Tables[[i]]$gene_type,invert = T),]
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  Tables[[i]] <- merge(Tables[[i]],BBB,by = "gene_ID")
+
+  
+
+  
+}
+
+
+
+
+
+
+for(i in Names){
+  a <- paste(i,nrow(Tables[[i]]))
+  b <- round(cor(Tables[[i]]$FCH_rep1, Tables[[i]]$FCH_rep2,method = "spearman"),2)
+  print(paste(a,b,sep=" "))
+}
+
+
+
+
+Columns <- c("chr", "start", "end", "Peak_ID", "RBP", "strand", "Summit_start", "Summit_end","Rep1","Rep2","Halo","Input","minuslog10pval_rep1", "minuslog10pval_rep2", "minuslog10FDR_rep1", "minuslog10FDR_rep2", "FCH_rep1", "FCH_rep2", "FCI_rep1", "FCI_rep2", "Mean_FCH", "Mean_FCI", "BS", "gene_ID", "gene_name", "gene_type", "feature", "Gene_BI", "local_idr", "global_IDR", "positive_fa", "negative_fa" )
+
+Columns_rename <- c("chr", "start", "end", "Peak_ID", "RBP", "strand", "Summit_start", "Summit_end","Rep1","Rep2","Halo","Input","minuslog10pval_rep1", "minuslog10pval_rep2", "minuslog10FDR_rep1", "minuslog10FDR_rep2", "FCH_rep1", "FCH_rep2", "FCI_rep1", "FCI_rep2", "Mean_FCH", "Mean_FCI", "BS", "gene_ID", "gene_name", "gene_type", "feature", "Gene_BS", "local_idr", "global_IDR", "positive_fa", "negative_fa" )
+
+for(i in Names){
+  Tables[[i]] <- Tables[[i]][,Columns]
+  colnames(Tables[[i]]) <- Columns_rename
+}
+
+
+
+
+
+PATH <- "/Users/ionutatanasoai/Documents/RAPseq_Manuscript/RAP_Annotated_PEAKS/"
+sapply(names(Tables), function (x) write.table(Tables[[x]], file = paste(paste(PATH,x,sep = ""),".peaks.txt",sep = ""), row.names = F, col.names = T, sep =  "\t") )
+
+
+
+```
+
+
+
+
+
+
+eCLIP peak file annotations
+
+```{r}
+
+options(scipen=999, dplyr.summarise.inform = FALSE)
+
+PATH <- "/Users/ionutatanasoai/Documents/RAPseq_Manuscript/eCLIP/PEAKS/"
+PEAKS <- list.files(path = PATH)
+Names <- unlist(str_split(PEAKS,"_eCLIP"))[grep("bed",unlist(str_split(PEAKS,"_eCLIP")), invert = T)]
+CLIPs <- list()
+
+
+for (i in 1:length(Names)){
+  
+  CLIPs[[i]] <- as.data.frame(read.table(paste(PATH,PEAKS[i],sep = ""), header = F, stringsAsFactors = F))
+  colnames(CLIPs[[i]]) <- c("chr", "Summit_start", "Summit_end", "Peak_ID", "RBP", "strand", "start", "end", "MeanFC", "MeanFDR", "Rep1", "Rep2", "SMI", "positive_fa", "negative_fa")
+
+}
+
+names(CLIPs) <- Names
+
+
+for(i in Names){
+  #print(paste(i,nrow(CLIPs[[i]])))
+ 
+  CLIPs[[i]]$RBP <- rep(i,nrow(CLIPs[[i]]))
+  CLIPs[[i]]$Peak_ID <- paste(  CLIPs[[i]]$chr,CLIPs[[i]]$start,CLIPs[[i]]$end,CLIPs[[i]]$strand, sep = "_" )
+  CLIPs[[i]]$Summit_start <- round( (CLIPs[[i]]$start + CLIPs[[i]]$end)/2, 0)
+  CLIPs[[i]]$Summit_end <- CLIPs[[i]]$Summit_start + 1 
+  CLIPs[[i]]$IDs <- paste(  CLIPs[[i]]$chr,CLIPs[[i]]$Summit_start,CLIPs[[i]]$Summit_end,CLIPs[[i]]$strand, sep = "_" )
+
+  CLIPs[[i]]$Rep1 <- CLIPs[[i]]$Rep1 
+  CLIPs[[i]]$Rep2 <- CLIPs[[i]]$Rep2 
+  CLIPs[[i]]$SMI[CLIPs[[i]]$SMI == 0] <- min(CLIPs[[i]][CLIPs[[i]]$SMI != 0 ,"SMI"])
+
+
+
+  CLIPs[[i]]$FC_rep1 <- CLIPs[[i]]$Rep1/CLIPs[[i]]$SMI
+  CLIPs[[i]]$FC_rep2 <- CLIPs[[i]]$Rep2/CLIPs[[i]]$SMI
+  
+  CLIPs[[i]]$BS_rep1 <- log2(CLIPs[[i]]$Rep1) * CLIPs[[i]]$FC_rep1
+  CLIPs[[i]]$BS_rep2 <- log2(CLIPs[[i]]$Rep2) * CLIPs[[i]]$FC_rep2
+  CLIPs[[i]]$BS <- (CLIPs[[i]]$BS_rep1 + CLIPs[[i]]$BS_rep2)/2
+  CLIPs[[i]]$Mean_FC <- (CLIPs[[i]]$FC_rep1 + CLIPs[[i]]$FC_rep2)/2
+  CLIPs[[i]]$Mean_geom_FC <- sqrt(CLIPs[[i]]$FC_rep1*CLIPs[[i]]$FC_rep2)
+
+  #CLIPs[[i]] <- CLIPs[[i]][CLIPs[[i]]$FC_rep1 > 1 & CLIPs[[i]]$FC_rep2 > 1,]
+
+
+  
+  GR <- makeGRangesFromDataFrame(CLIPs[[i]][,c("chr","Summit_start","Summit_end","Peak_ID","RBP","strand")])
+  
+    
+  CLIPs[[i]] <- CLIPs[[i]][as.data.frame(findOverlaps(GR,Features_GR, type = "within"))[,1],]
+  Annots <- Features[as.data.frame(findOverlaps(GR,Features_GR, type = "within"))[,2],][,4:8]
+  CLIPs[[i]] <- cbind(CLIPs[[i]],Annots)
+  CLIPs[[i]]$strand <- as.character(CLIPs[[i]]$strand)
+  CLIPs[[i]]$gene_strand <- as.character(CLIPs[[i]]$gene_strand)
+  CLIPs[[i]] <- CLIPs[[i]][CLIPs[[i]]$strand == CLIPs[[i]]$gene_strand, ]
+  CLIPs[[i]]$IDs <- paste( CLIPs[[i]]$IDs, CLIPs[[i]]$feature, CLIPs[[i]]$gene_ID, sep = "_" )
+  CLIPs[[i]] <- CLIPs[[i]][duplicated(CLIPs[[i]]$IDs) == "FALSE",]
+  
+  #print(paste(i,nrow(CLIPs[[i]])))
+  
+  CLIPs[[i]]$IDs <- paste( CLIPs[[i]]$chr,CLIPs[[i]]$Summit_start,CLIPs[[i]]$Summit_end,CLIPs[[i]]$strand, CLIPs[[i]]$feature, sep = "_" )
+  CLIPs[[i]] <- CLIPs[[i]][duplicated(CLIPs[[i]]$IDs) == "FALSE",]
+  
+  #print(paste(i,nrow(CLIPs[[i]])))  
+  
+  
+  
+  CLIPs[[i]]$IDs <- paste( CLIPs[[i]]$chr,CLIPs[[i]]$Summit_start,CLIPs[[i]]$Summit_end,CLIPs[[i]]$strand, sep = "_" )
+  CLIPs[[i]]$Unique_Anno <-  ave( seq_along(CLIPs[[i]]$IDs), CLIPs[[i]]$IDs, FUN = length ) == 1
+  CLIPs[[i]] <- CLIPs[[i]][(CLIPs[[i]]$Unique_Anno == "FALSE" & CLIPs[[i]]$feature == "intron") == "FALSE" ,]
+  #print(paste(i,nrow(CLIPs[[i]])))
+  
+  CLIPs[[i]]$Unique_Anno <-  ave( seq_along(CLIPs[[i]]$IDs), CLIPs[[i]]$IDs, FUN = length ) == 1
+  CLIPs[[i]] <- CLIPs[[i]][(CLIPs[[i]]$Unique_Anno == "FALSE" & CLIPs[[i]]$feature == "exon") == "FALSE" ,]
+  #print(paste(i,nrow(CLIPs[[i]])))
+  
+  CLIPs[[i]]$Unique_Anno <-  ave( seq_along(CLIPs[[i]]$IDs), CLIPs[[i]]$IDs, FUN = length ) == 1
+  CLIPs[[i]] <- CLIPs[[i]][(CLIPs[[i]]$Unique_Anno == "FALSE" & CLIPs[[i]]$feature == "5UTR") == "FALSE" ,]
+  #print(paste(i,nrow(CLIPs[[i]])))
+  
+  CLIPs[[i]]$Unique_Anno <-  ave( seq_along(CLIPs[[i]]$IDs), CLIPs[[i]]$IDs, FUN = length ) == 1
+  CLIPs[[i]] <- CLIPs[[i]][(CLIPs[[i]]$Unique_Anno == "FALSE" & CLIPs[[i]]$feature == "3UTR") == "FALSE" ,]
+  #print(paste(i,nrow(CLIPs[[i]])))
+  
+  CLIPs[[i]]$peak_uniqueness <- ave( seq_along(CLIPs[[i]]$Peak_ID), CLIPs[[i]]$Peak_ID, FUN = length ) == 1
+  #print(paste(i,nrow(CLIPs[[i]])))
+
+    
+  AAA <- CLIPs[[i]][,c("gene_ID","BS")]
+  BBB <- AAA %>% group_by(gene_ID) %>% summarise(Gene_BI_CLIP = sum(BS))
+  BBB <- as.data.frame(BBB)
+
+  CLIPs[[i]] <- CLIPs[[i]][grep("pseudogene",CLIPs[[i]]$gene_type,invert = T),]
+  #print(paste(i,nrow(CLIPs[[i]])))
+  
+  CLIPs[[i]] <- merge(CLIPs[[i]],BBB,by = "gene_ID")
+
+}
+
+
+for(i in Names){
+  a <- paste(i,nrow(CLIPs[[i]]))
+  b <- round(cor(CLIPs[[i]]$FC_rep1, CLIPs[[i]]$FC_rep2,method = "spearman"),2)
+  print(paste(a,b,sep=" "))
+}
+
+
+
+
+
+Columns <- c("chr", "start", "end", "Peak_ID", "RBP", "strand", "Summit_start", "Summit_end", "MeanFC", "MeanFDR", "Rep1", "Rep2", "SMI", "FC_rep1", "FC_rep2", "Mean_FC", "BS", "gene_ID", "gene_name", "gene_type", "feature", "Gene_BI_CLIP", "positive_fa", "negative_fa" )
+
+Columns_rename <- c("chr", "start", "end", "Peak_ID", "RBP", "strand", "Summit_start", "Summit_end", "MeanFC", "MeanFDR", "Rep1", "Rep2", "SMI", "FC_rep1", "FC_rep2", "Mean_FC", "BS", "gene_ID", "gene_name", "gene_type", "feature", "Gene_BS_CLIP", "positive_fa", "negative_fa" )
+
+for(i in Names){
+  CLIPs[[i]] <- CLIPs[[i]][,Columns]
+  colnames(CLIPs[[i]]) <- Columns_rename
+}
+
+
+
+
+PATH <- "/Users/ionutatanasoai/Documents/RAPseq_Manuscript/eCLIP_Annotated_PEAKS/"
+sapply(names(CLIPs), function (x) write.table(CLIPs[[x]], file = paste(paste(PATH,x,sep = ""),".peaks.txt",sep = ""), row.names = F, col.names = T, sep =  "\t") )
+
+
+
+
+```
+
+```{r}
+
+
+HURs <- read.table(file = "/Users/ionutatanasoai/Documents/RAPseq_Manuscript/FIGURE_3/Metafile/HuRs.metafile.final.with.phyloPsFULL.bed", stringsAsFactors = F, header = T, sep="\t")
+HURs$Halo[HURs$Halo == 0] <- min(HURs$Halo[HURs$Halo != 0])
+HURs$Input[HURs$Input == 0] <- min(HURs$Input[HURs$Input != 0])
+
+
+## fix the order of the names in the ortholog column a.k.a. "Original_Peak_For"
+
+orths <- HURs$Original_Peak_For
+fixed_orths <- c()
+n_orths <- c()
+for (i in 1:length(orths)){
+  a <- paste(sort(unlist(str_split(orts[i],","))) , collapse=",")
+  fixed_orths <- c(fixed_orths,a)
+  b <- length( unlist(str_split(orts[i],",")) )
+  n_orths <- c(n_orths,b)
+}
+
+HURs$Peak_For <- fixed_orths
+HURs$N_orthologs <- n_orths
+
+ 
+HURs$Peak_ID <- paste(  HURs$chr,HURs$Summit_start,HURs$Summit_end,HURs$strand, sep = "_" )
+HURs$IDs <- paste(  HURs$chr,HURs$Summit_start,HURs$Summit_end,HURs$strand, sep = "_" )
+
+
+
+FCHs <- HURs[,colnames(HURs)[grep(paste(c("xt_","gg_","md_","mm_","hs_"),collapse="|"),colnames(HURs))]]
+FCHs <- FCHs/HURs$Halo
+mean_FCHs <- data.frame((FCHs[,1]+FCHs[,2])/2, (FCHs[,3]+FCHs[,4])/2, (FCHs[,5]+FCHs[,6])/2, (FCHs[,7]+FCHs[,8])/2, (FCHs[,9]+FCHs[,10])/2)
+a <- colnames(HURs)[grep(paste(c("xt_","gg_","md_","mm_","hs_"),collapse="|"),colnames(HURs))][c(1,3,5,7,9)]
+a <- gsub("_rep1","_Mean_FCH",a)
+colnames(mean_FCHs) <- a
+
+
+FCIs <- HURs[,colnames(HURs)[grep(paste(c("xt_","gg_","md_","mm_","hs_"),collapse="|"),colnames(HURs))]]
+FCIs <- FCIs/HURs$Input
+mean_FCIs <- data.frame((FCIs[,1]+FCIs[,2])/2, (FCIs[,3]+FCIs[,4])/2, (FCIs[,5]+FCIs[,6])/2, (FCIs[,7]+FCIs[,8])/2, (FCIs[,9]+FCIs[,10])/2)
+a <- colnames(HURs)[grep(paste(c("xt_","gg_","md_","mm_","hs_"),collapse="|"),colnames(HURs))][c(1,3,5,7,9)]
+a <- gsub("_rep1","_Mean_FCI",a)
+colnames(mean_FCIs) <- a
+
+Counts <- HURs[,colnames(HURs)[grep(paste(c("xt_","gg_","md_","mm_","hs_"),collapse="|"),colnames(HURs))]]
+mean_Counts <- data.frame((Counts[,1]+Counts[,2])/2, (Counts[,3]+Counts[,4])/2, (Counts[,5]+Counts[,6])/2, (Counts[,7]+Counts[,8])/2, (Counts[,9]+Counts[,10])/2)
+a <- colnames(HURs)[grep(paste(c("xt_","gg_","md_","mm_","hs_"),collapse="|"),colnames(HURs))][c(1,3,5,7,9)]
+a <- gsub("_rep1","_Mean_Counts",a)
+colnames(mean_Counts) <- a
+
+
+
+BSs <- log2(mean_Counts+1) * ((mean_FCHs + mean_FCIs)/2)
+colnames(BSs) <- gsub("Mean_Counts","BS",colnames(BSs))
+
+Ortholog_Average_BS <- rowMeans(BSs)
+Ortholog_Average_FCH <- rowMeans(mean_FCHs)
+Ortholog_Average_FCI <- rowMeans(mean_FCIs)
+
+
+HURs <- cbind(HURs,mean_FCHs,mean_FCIs,BSs,Ortholog_Average_BS,Ortholog_Average_FCH,Ortholog_Average_FCI)
+
+
+
+
+AAA <- HURs[,c("chr","Summit_start","Summit_end","Peak_ID","Peak_For","strand")]
+colnames(AAA) <- c("chr","Summit_start","Summit_end","Peak_ID","RBP","strand")
+  
+  GR <- makeGRangesFromDataFrame(AAA)
+  
+    
+  HURs <- HURs[as.data.frame(findOverlaps(GR,Features_GR, type = "within"))[,1],]
+  Annots <- Features[as.data.frame(findOverlaps(GR,Features_GR, type = "within"))[,2],][,4:8]
+  HURs <- cbind(HURs,Annots)
+  HURs$strand <- as.character(HURs$strand)
+  HURs$gene_strand <- as.character(HURs$gene_strand)
+  HURs <- HURs[HURs$strand == HURs$gene_strand, ]
+  HURs$IDs <- paste( HURs$IDs, HURs$feature, HURs$gene_ID, sep = "_" )
+  HURs <- HURs[duplicated(HURs$IDs) == "FALSE",]
+  
+  #print(paste(i,nrow(HURs)))
+  
+  HURs$IDs <- paste( HURs$chr,HURs$Summit_start,HURs$Summit_end,HURs$strand, HURs$feature, sep = "_" )
+  HURs <- HURs[duplicated(HURs$IDs) == "FALSE",]
+  
+  #print(paste(i,nrow(HURs)))  
+  
+  
+  
+  HURs$IDs <- paste( HURs$chr,HURs$Summit_start,HURs$Summit_end,HURs$strand, sep = "_" )
+  HURs$Unique_Anno <-  ave( seq_along(HURs$IDs), HURs$IDs, FUN = length ) == 1
+  HURs <- HURs[(HURs$Unique_Anno == "FALSE" & HURs$feature == "intron") == "FALSE" ,]
+  #print(paste(i,nrow(HURs)))
+  
+  HURs$Unique_Anno <-  ave( seq_along(HURs$IDs), HURs$IDs, FUN = length ) == 1
+  HURs <- HURs[(HURs$Unique_Anno == "FALSE" & HURs$feature == "exon") == "FALSE" ,]
+  #print(paste(i,nrow(HURs)))
+  
+  HURs$Unique_Anno <-  ave( seq_along(HURs$IDs), HURs$IDs, FUN = length ) == 1
+  HURs <- HURs[(HURs$Unique_Anno == "FALSE" & HURs$feature == "5UTR") == "FALSE" ,]
+  #print(paste(i,nrow(HURs)))
+  
+  HURs$Unique_Anno <-  ave( seq_along(HURs$IDs), HURs$IDs, FUN = length ) == 1
+  HURs <- HURs[(HURs$Unique_Anno == "FALSE" & HURs$feature == "3UTR") == "FALSE" ,]
+  #print(paste(i,nrow(HURs)))
+  
+  HURs$peak_uniqueness <- ave( seq_along(HURs$Peak_ID), HURs$Peak_ID, FUN = length ) == 1
+  #print(paste(i,nrow(HURs)))
+
+  HURs <- HURs[grep("pseudogene",HURs$gene_type,invert = T),]
+  HURs <- HURs[grep("tRNA|rRNA",HURs$gene_type,invert = T),]
+  #print(paste(i,nrow(HURs)))
+  
+
+  
+
+HURs$Peak_History <- paste(HURs$Original_Peak_For, HURs$original_Peak_IDs, sep=";") 
+HURs$RBP <- HURs$Peak_For
+
+
+
+HURs <- HURs[,c("chr","Summit_start","Summit_end","Peak_ID","RBP","strand","N_orthologs","hs_rep1","hs_rep2","mm_rep1","mm_rep2","md_rep1","md_rep2","gg_rep1","gg_rep2","xt_rep1","xt_rep2","Halo","Input","positive_fa","negative_fa","phylo100_30mean","phylo100_30mean_NEG","Ortholog_Average_BS","Ortholog_Average_FCH","Ortholog_Average_FCI","gene_ID","feature","gene_name","gene_type","hs_Mean_FCH","mm_Mean_FCH","md_Mean_FCH","gg_Mean_FCH","xt_Mean_FCH","hs_Mean_FCI","mm_Mean_FCI","md_Mean_FCI","gg_Mean_FCI","xt_Mean_FCI","hs_BS","mm_BS","md_BS","gg_BS","xt_BS","Peak_History")]
+
+
+write.table(HURs,file = "/Users/ionutatanasoai/Documents/RAPseq_Manuscript/FIGURE_3/Metafile/HuRs.metafile.ANNOTATED.final.bed", col.names = T, row.names = F, sep="\t")
+
+
+```
+
+
+
+```{r}
+
+
+
+txdb <- makeTxDbFromGFF(file = "/Users/ionutatanasoai/Downloads/ensembl.danrerGRCz11.gtf", format = "gtf")
+Gencode_v33_IDs <- read.table(file = "/Users/ionutatanasoai/Downloads/ensembl.danrerGRCz11.IDs.txt")
+colnames(Gencode_v33_IDs) <- c("gene_ID","transcript_ID","gene_strand","gene_name","gene_type")
+
+
+Intron_GR <- intronsByTranscript(txdb, use.names = TRUE)
+Exon_GR <- exonsBy(txdb, by = "tx", use.names = TRUE)
+ThreeUTR_GR <- threeUTRsByTranscript(txdb, use.names = TRUE)
+FiveUTR_GR <- fiveUTRsByTranscript(txdb, use.names = TRUE)
+CDS_GR <- cdsBy(txdb, by = "tx", use.names = TRUE)
+pass_1 <- subsetByOverlaps(Exon_GR,CDS_GR,invert = T)
+pass_2 <- subsetByOverlaps(pass_1,ThreeUTR_GR,invert = T)
+Exon_GR <- subsetByOverlaps(pass_2,FiveUTR_GR,invert = T)
+rm(pass_1)
+rm(pass_2)
+
+
+Introns <- as.data.frame(Intron_GR)[,c(3,4,5,2,7)]
+Introns$feature <- rep("intron",nrow(Introns))
+Exons <- as.data.frame(Exon_GR)[,c(3,4,5,2,7)]
+Exons$feature <- rep("exon",nrow(Exons))
+CDSs <- as.data.frame(CDS_GR)[,c(3,4,5,2,7)]
+CDSs$feature <- rep("CDS",nrow(CDSs))
+FiveUTRs <- as.data.frame(FiveUTR_GR)[,c(3,4,5,2,7)]
+FiveUTRs$feature <- rep("5UTR",nrow(FiveUTRs))
+ThreeUTRs <- as.data.frame(ThreeUTR_GR)[,c(3,4,5,2,7)]
+ThreeUTRs$feature <- rep("3UTR",nrow(ThreeUTRs))
+Features <- rbind(Introns, Exons, CDSs, FiveUTRs, ThreeUTRs)
+colnames(Features) <- c("chr","start","end","transcript_ID","feature_strand","feature")
+
+
+Features <- merge(Features,Gencode_v33_IDs,by = "transcript_ID")
+Features$gene_ID <- as.character(Features$gene_ID)
+Features <- Features[,c(2,3,4,7,6,5,9,10)]
+colnames(Features) <- c("chr","start","end","gene_ID","feature","strand","gene_name","gene_type")
+Features$IDs <- paste( Features[,1],Features[,2],Features[,3],Features[,4],Features[,5],Features[,6], Features[,7], sep = "_")
+Features <- Features[duplicated(Features$IDs) == "FALSE",]
+Features <- Features[,1:8]
+Features$chr <- as.character(Features$chr)
+Features$strand <- as.character(Features$strand)
+
+Features_GR <-  makeGRangesFromDataFrame(Features[,1:6])
+colnames(Features) <- c("chr","start","end","gene_ID","feature","gene_strand","gene_name","gene_type")
+Features$gene_type <- as.character(Features$gene_type)
+
+
+
+
+
+
+
+
+
+options(scipen = 999,dplyr.summarise.inform = FALSE)
+
+PATH <- "/Users/ionutatanasoai/Documents/RAPseq_Manuscript/NEW_PEAKS/FISH/"
+PEAKS <- list.files(path = PATH)
+Names <- unlist(str_split(PEAKS,"\\_fin"))[grep("bed",unlist(str_split(PEAKS,"\\_fin")),invert = T)]
+Tables <- list()
+  
+
+
+
+for (i in 1:length(Names)){
+  Tables[[i]] <- as.data.frame(read.table(paste(PATH,PEAKS[i],sep = ""), stringsAsFactors = F))
+  colnames(Tables[[i]]) <- c("chr","Summit_start","Summit_end","start","end","strand","Count_rep1","Count_rep2","minuslog10pval_rep1","minuslog10pval_rep2","Rep1","Rep2","Halo","Input","minusInput_rep1","minusInput_rep2","minusInput_Halo","positive_fa","negative_fa")
+}
+
+names(Tables) <- Names
+
+mu <- 2.6
+sigma <- 1.3
+rho <- 0.8
+p <- 0.7
+
+
+for(i in Names){
+  #print(paste(i,nrow(Tables[[i]])))
+ 
+  x<-Tables[[i]][,c("minuslog10pval_rep1","minuslog10pval_rep2")]
+  idr.out <- est.IDR(x, mu, sigma, rho, p, eps=0.001, max.ite=30)
+  Tables[[i]]$local_idr <- idr.out$idr
+  Tables[[i]]$global_IDR <- idr.out$IDR
+  
+  Tables[[i]]$RBP <- rep(i,nrow(Tables[[i]]))
+  Tables[[i]]$Peak_ID <- paste(  Tables[[i]]$chr,Tables[[i]]$start,Tables[[i]]$end,Tables[[i]]$strand, sep = "_" )
+  Tables[[i]]$Summit_start <- Tables[[i]]$Summit_start + 4
+  Tables[[i]]$Summit_end <- Tables[[i]]$Summit_start + 1 
+  Tables[[i]]$IDs <- paste(  Tables[[i]]$chr,Tables[[i]]$Summit_start,Tables[[i]]$Summit_end,Tables[[i]]$strand, sep = "_" )
+
+  #Tables[[i]]$Rep1 <- Tables[[i]]$Rep1 + 1
+  #Tables[[i]]$Rep2 <- Tables[[i]]$Rep2 + 1
+  Tables[[i]]$Halo[Tables[[i]]$Halo == 0] <- min(Tables[[i]][Tables[[i]]$Halo!=0,"Halo"])
+  Tables[[i]]$Input[Tables[[i]]$Input == 0] <- min(Tables[[i]][Tables[[i]]$Input!=0,"Input"])
+  Tables[[i]]$minusInput_rep1 <- Tables[[i]]$minusInput_rep1 + 1
+  Tables[[i]]$minusInput_rep2 <- Tables[[i]]$minusInput_rep2 + 1
+  Tables[[i]]$minusInput_Halo <- Tables[[i]]$minusInput_Halo + 1
+  Tables[[i]]$RPM_rep1 <- Tables[[i]]$RPM_rep1 
+  Tables[[i]]$RPM_rep2 <- Tables[[i]]$RPM_rep2
+
+  
+  Tables[[i]]$minuslog10FDR_rep1 <- round(-log10(p.adjust(10^-Tables[[i]]$minuslog10pval_rep1, method = "BH")),5)
+  Tables[[i]]$minuslog10FDR_rep2 <- round(-log10(p.adjust(10^-Tables[[i]]$minuslog10pval_rep2, method = "BH")),5)
+  
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$minuslog10FDR_rep1 >= 1.30103,]
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$minuslog10FDR_rep2 >= 1.30103,]  
+  
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$minuslog10pval_rep1 >= 4,]
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$minuslog10pval_rep2 >= 4,]
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  
+  ################################### trial #############################################
+  
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$Halo/Tables[[i]]$Input < 2,]
+  #Tables[[i]] <- Tables[[i]][Tables[[i]]$RPM_Halo/Tables[[i]]$RPM_Input < 2,]
+  #print(paste(i,nrow(Tables[[i]])))
+
+  #######################################################################################
+  
+  Tables[[i]]$FCH_rep1 <- Tables[[i]]$Rep1/Tables[[i]]$Halo
+  Tables[[i]]$FCH_rep2 <- Tables[[i]]$Rep2/Tables[[i]]$Halo
+  Tables[[i]]$FCI_rep1 <- Tables[[i]]$Rep1/Tables[[i]]$Input
+  Tables[[i]]$FCI_rep2 <- Tables[[i]]$Rep2/Tables[[i]]$Input
+  Tables[[i]]$FCmean_rep1 <- (Tables[[i]]$FCH_rep1 + Tables[[i]]$FCI_rep1)/2
+  Tables[[i]]$FCmean_rep2 <- (Tables[[i]]$FCH_rep2 + Tables[[i]]$FCI_rep2)/2
+  Tables[[i]]$BS_rep1 <- log2(Tables[[i]]$Rep1) * Tables[[i]]$FCmean_rep1
+  Tables[[i]]$BS_rep2 <- log2(Tables[[i]]$Rep2) * Tables[[i]]$FCmean_rep2
+  Tables[[i]]$BS <- (Tables[[i]]$BS_rep1 + Tables[[i]]$BS_rep2)/2
+  Tables[[i]]$Mean_FCH <- (Tables[[i]]$FCH_rep1 + Tables[[i]]$FCH_rep2)/2
+  Tables[[i]]$Mean_FCI <- (Tables[[i]]$FCI_rep1 + Tables[[i]]$FCI_rep2)/2
+
+  
+  Tables[[i]]$FCHminI_rep1 <- Tables[[i]]$minusInput_rep1/Tables[[i]]$minusInput_Halo
+  Tables[[i]]$FCHminI_rep2 <- Tables[[i]]$minusInput_rep2/Tables[[i]]$minusInput_Halo
+  
+
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$FCH_rep1 > 1 & Tables[[i]]$FCH_rep2 > 1,]
+
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$FCI_rep1 > 1 & Tables[[i]]$FCI_rep2 > 1,]
+  
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  Tables[[i]]$positive_fa_check <- str_sub(Tables[[i]]$positive_fa,85,115)
+  Gs <- str_count(Tables[[i]]$positive_fa_check,"G") / (115-85) 
+  As <- str_count(Tables[[i]]$positive_fa_check,"A") / (115-85) 
+  Ts <- str_count(Tables[[i]]$positive_fa_check,"T") / (115-85) 
+  Cs <- 1 - Gs - As - Ts
+  GAs <- Gs + As
+  Tables[[i]]$GAs <- GAs
+  Tables[[i]]$GTs <- Gs + Ts
+  Tables[[i]]$GCs <- Gs + Cs
+  Tables[[i]]$GATs <- Gs + As + Ts
+  GAs <- Gs + As
+  GTs <- Gs + Ts
+  GATs <- Gs + As + Ts
+  #print(paste(i,nrow(Tables[[i]])))
+
+ 
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$GAs <= 0.7,]
+  #Tables[[i]] <- Tables[[i]][Tables[[i]]$GATs <= 0.9,]
+  #print(paste(i,nrow(Tables[[i]])))
+
+
+
+  
+  GR <- makeGRangesFromDataFrame(Tables[[i]][,c("chr","Summit_start","Summit_end","Peak_ID","RBP","strand")])
+  
+    
+  Tables[[i]] <- Tables[[i]][as.data.frame(findOverlaps(GR,Features_GR, type = "within"))[,1],]
+  Annots <- Features[as.data.frame(findOverlaps(GR,Features_GR, type = "within"))[,2],][,4:8]
+  Tables[[i]] <- cbind(Tables[[i]],Annots)
+  Tables[[i]]$strand <- as.character(Tables[[i]]$strand)
+  Tables[[i]]$gene_strand <- as.character(Tables[[i]]$gene_strand)
+  Tables[[i]] <- Tables[[i]][Tables[[i]]$strand == Tables[[i]]$gene_strand, ]
+  Tables[[i]]$IDs <- paste( Tables[[i]]$IDs, Tables[[i]]$feature, Tables[[i]]$gene_ID, sep = "_" )
+  Tables[[i]] <- Tables[[i]][duplicated(Tables[[i]]$IDs) == "FALSE",]
+  
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  Tables[[i]]$IDs <- paste( Tables[[i]]$chr,Tables[[i]]$Summit_start,Tables[[i]]$Summit_end,Tables[[i]]$strand, Tables[[i]]$feature, sep = "_" )
+  Tables[[i]] <- Tables[[i]][duplicated(Tables[[i]]$IDs) == "FALSE",]
+  
+  #print(paste(i,nrow(Tables[[i]])))  
+  
+  
+  
+  Tables[[i]]$IDs <- paste( Tables[[i]]$chr,Tables[[i]]$Summit_start,Tables[[i]]$Summit_end,Tables[[i]]$strand, sep = "_" )
+  Tables[[i]]$Unique_Anno <-  ave( seq_along(Tables[[i]]$IDs), Tables[[i]]$IDs, FUN = length ) == 1
+  Tables[[i]] <- Tables[[i]][(Tables[[i]]$Unique_Anno == "FALSE" & Tables[[i]]$feature == "intron") == "FALSE" ,]
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  Tables[[i]]$Unique_Anno <-  ave( seq_along(Tables[[i]]$IDs), Tables[[i]]$IDs, FUN = length ) == 1
+  Tables[[i]] <- Tables[[i]][(Tables[[i]]$Unique_Anno == "FALSE" & Tables[[i]]$feature == "exon") == "FALSE" ,]
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  Tables[[i]]$Unique_Anno <-  ave( seq_along(Tables[[i]]$IDs), Tables[[i]]$IDs, FUN = length ) == 1
+  Tables[[i]] <- Tables[[i]][(Tables[[i]]$Unique_Anno == "FALSE" & Tables[[i]]$feature == "5UTR") == "FALSE" ,]
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  Tables[[i]]$Unique_Anno <-  ave( seq_along(Tables[[i]]$IDs), Tables[[i]]$IDs, FUN = length ) == 1
+  Tables[[i]] <- Tables[[i]][(Tables[[i]]$Unique_Anno == "FALSE" & Tables[[i]]$feature == "3UTR") == "FALSE" ,]
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  Tables[[i]]$peak_uniqueness <- ave( seq_along(Tables[[i]]$Peak_ID), Tables[[i]]$Peak_ID, FUN = length ) == 1
+  #print(paste(i,nrow(Tables[[i]])))
+
+    
+  AAA <- Tables[[i]][,c("gene_ID","BS")]
+  BBB <- AAA %>% group_by(gene_ID) %>% summarise(Gene_BI = sum(BS))
+  BBB <- as.data.frame(BBB)
+
+  Tables[[i]] <- Tables[[i]][grep("pseudogene",Tables[[i]]$gene_type,invert = T),]
+  Tables[[i]] <- Tables[[i]][grep("tRNA|rRNA",Tables[[i]]$gene_type,invert = T),]
+  #print(paste(i,nrow(Tables[[i]])))
+  
+  Tables[[i]] <- merge(Tables[[i]],BBB,by = "gene_ID")
+
+  
+
+  
+}
+
+
+
+
+
+
+for(i in Names){
+  a <- paste(i,nrow(Tables[[i]]))
+  b <- round(cor(Tables[[i]]$FCH_rep1, Tables[[i]]$FCH_rep2,method = "spearman"),2)
+  print(paste(a,b,sep=" "))
+}
+
+
+
+
+Columns <- c("chr", "start", "end", "Peak_ID", "RBP", "strand", "Summit_start", "Summit_end","Rep1","Rep2","Halo","Input","minuslog10pval_rep1", "minuslog10pval_rep2", "minuslog10FDR_rep1", "minuslog10FDR_rep2", "FCH_rep1", "FCH_rep2", "FCI_rep1", "FCI_rep2", "Mean_FCH", "Mean_FCI", "BS", "gene_ID", "gene_name", "gene_type", "feature", "Gene_BI", "local_idr", "global_IDR", "positive_fa", "negative_fa" )
+
+Columns_rename <- c("chr", "start", "end", "Peak_ID", "RBP", "strand", "Summit_start", "Summit_end","Rep1","Rep2","Halo","Input","minuslog10pval_rep1", "minuslog10pval_rep2", "minuslog10FDR_rep1", "minuslog10FDR_rep2", "FCH_rep1", "FCH_rep2", "FCI_rep1", "FCI_rep2", "Mean_FCH", "Mean_FCI", "BS", "gene_ID", "gene_name", "gene_type", "feature", "Gene_BS", "local_idr", "global_IDR", "positive_fa", "negative_fa" )
+
+for(i in Names){
+  Tables[[i]] <- Tables[[i]][,Columns]
+  colnames(Tables[[i]]) <- Columns_rename
+}
+
+
+
+
+
+PATH <- "/Users/ionutatanasoai/Documents/RAPseq_Manuscript/RAP_Annotated_PEAKS/FISH/"
+sapply(names(Tables), function (x) write.table(Tables[[x]], file = paste(paste(PATH,x,sep = ""),".peaks.txt",sep = ""), row.names = F, col.names = T, sep =  "\t") )
+
+
+
+
+
+
+```
+
+
+
+
+```{r}
+
+
+HURs_FISH <- read.table(file = "/Users/ionutatanasoai/Documents/RAPseq_Manuscript/FIGURE_3/Metafile/HURs_FISHES.metafile.final.bed", stringsAsFactors = F, header = F, sep="\t")
+colnames(HURs_FISH) <- c("chr", "Summit_start", "Summit_end", "Orinal_Peak_ID", "Original_Peak_For", "strand","hs_rep1","hs_rep2","dr_rep1","dr_rep2","Halo","Input","positive_fa","negative_fa")
+HURs_FISH$Summit_start <- HURs_FISH$Summit_start + 4
+HURs_FISH$Summit_end <- HURs_FISH$Summit_end - 4
+HURs_FISH$positive_fa <- str_to_upper(HURs_FISH$positive_fa)
+HURs_FISH$negative_fa <- str_to_upper(HURs_FISH$negative_fa)
+HURs_FISH$RBP <- gsub("hs,dr","dr,hs",HURs_FISH$Original_Peak_For)
+
+
+
+HURs_FISH$Halo[HURs_FISH$Halo == 0] <- min(HURs_FISH$Halo[HURs_FISH$Halo != 0])
+HURs_FISH$Input[HURs_FISH$Input == 0] <- min(HURs_FISH$Input[HURs_FISH$Input != 0])
+
+
+
+
+HURs_FISH$N_orthologs <- round(nchar(HURs_FISH$RBP)/2)
+
+ 
+HURs_FISH$Peak_ID <- paste(  HURs_FISH$chr,HURs_FISH$Summit_start,HURs_FISH$Summit_end,HURs_FISH$strand, sep = "_" )
+HURs_FISH$IDs <- paste(  HURs_FISH$chr,HURs_FISH$Summit_start,HURs_FISH$Summit_end,HURs_FISH$strand, sep = "_" )
+
+
+
+FCHs <- HURs_FISH[,colnames(HURs_FISH)[grep(paste(c("dr_","hs_"),collapse="|"),colnames(HURs_FISH))]]
+FCHs <- FCHs/HURs_FISH$Halo
+mean_FCHs <- data.frame( (FCHs[,1]+FCHs[,2])/2, (FCHs[,3]+FCHs[,4])/2 )
+a <- colnames(HURs_FISH)[grep(paste(c("dr_","hs_"),collapse="|"),colnames(HURs_FISH))][c(1,3)]
+a <- gsub("_rep1","_Mean_FCH",a)
+colnames(mean_FCHs) <- a
+
+
+
+FCIs <- HURs_FISH[,colnames(HURs_FISH)[grep(paste(c("dr_","hs_"),collapse="|"),colnames(HURs_FISH))]]
+FCIs <- FCIs/HURs_FISH$Input
+mean_FCIs <- data.frame( (FCIs[,1]+FCIs[,2])/2, (FCIs[,3]+FCIs[,4])/2 )
+a <- colnames(HURs_FISH)[grep(paste(c("dr_","hs_"),collapse="|"),colnames(HURs_FISH))][c(1,3)]
+a <- gsub("_rep1","_Mean_FCI",a)
+colnames(mean_FCIs) <- a
+
+
+
+Counts <- HURs_FISH[,colnames(HURs_FISH)[grep(paste(c("dr_","hs_"),collapse="|"),colnames(HURs_FISH))]]
+mean_Counts <- data.frame( (Counts[,1]+Counts[,2])/2, (Counts[,3]+Counts[,4])/2 )
+a <- colnames(HURs_FISH)[grep(paste(c("dr_","hs_"),collapse="|"),colnames(HURs_FISH))][c(1,3)]
+a <- gsub("_rep1","_Mean_Counts",a)
+colnames(mean_Counts) <- a
+
+
+
+BSs <- log2(mean_Counts+1) * ((mean_FCHs + mean_FCIs)/2)
+colnames(BSs) <- gsub("Mean_Counts","BS",colnames(BSs))
+
+Ortholog_Average_BS <- rowMeans(BSs)
+Ortholog_Average_FCH <- rowMeans(mean_FCHs)
+Ortholog_Average_FCI <- rowMeans(mean_FCIs)
+
+
+HURs_FISH <- cbind(HURs_FISH,mean_FCHs,mean_FCIs,BSs,Ortholog_Average_BS,Ortholog_Average_FCH,Ortholog_Average_FCI)
+
+
+
+
+AAA <- HURs_FISH[,c("chr","Summit_start","Summit_end","Peak_ID","RBP","strand")]
+colnames(AAA) <- c("chr","Summit_start","Summit_end","Peak_ID","RBP","strand")
+  
+  GR <- makeGRangesFromDataFrame(AAA)
+  
+    
+  HURs_FISH <- HURs_FISH[as.data.frame(findOverlaps(GR,Features_GR, type = "within"))[,1],]
+  Annots <- Features[as.data.frame(findOverlaps(GR,Features_GR, type = "within"))[,2],][,4:8]
+  HURs_FISH <- cbind(HURs_FISH,Annots)
+  HURs_FISH$strand <- as.character(HURs_FISH$strand)
+  HURs_FISH$gene_strand <- as.character(HURs_FISH$gene_strand)
+  HURs_FISH <- HURs_FISH[HURs_FISH$strand == HURs_FISH$gene_strand, ]
+  HURs_FISH$IDs <- paste( HURs_FISH$IDs, HURs_FISH$feature, HURs_FISH$gene_ID, sep = "_" )
+  HURs_FISH <- HURs_FISH[duplicated(HURs_FISH$IDs) == "FALSE",]
+  
+  #print(paste(i,nrow(HURs_FISH)))
+  
+  HURs_FISH$IDs <- paste( HURs_FISH$chr,HURs_FISH$Summit_start,HURs_FISH$Summit_end,HURs_FISH$strand, HURs_FISH$feature, sep = "_" )
+  HURs_FISH <- HURs_FISH[duplicated(HURs_FISH$IDs) == "FALSE",]
+  
+  #print(paste(i,nrow(HURs_FISH)))  
+  
+  
+  
+  HURs_FISH$IDs <- paste( HURs_FISH$chr,HURs_FISH$Summit_start,HURs_FISH$Summit_end,HURs_FISH$strand, sep = "_" )
+  HURs_FISH$Unique_Anno <-  ave( seq_along(HURs_FISH$IDs), HURs_FISH$IDs, FUN = length ) == 1
+  HURs_FISH <- HURs_FISH[(HURs_FISH$Unique_Anno == "FALSE" & HURs_FISH$feature == "intron") == "FALSE" ,]
+  #print(paste(i,nrow(HURs_FISH)))
+  
+  HURs_FISH$Unique_Anno <-  ave( seq_along(HURs_FISH$IDs), HURs_FISH$IDs, FUN = length ) == 1
+  HURs_FISH <- HURs_FISH[(HURs_FISH$Unique_Anno == "FALSE" & HURs_FISH$feature == "exon") == "FALSE" ,]
+  #print(paste(i,nrow(HURs_FISH)))
+  
+  HURs_FISH$Unique_Anno <-  ave( seq_along(HURs_FISH$IDs), HURs_FISH$IDs, FUN = length ) == 1
+  HURs_FISH <- HURs_FISH[(HURs_FISH$Unique_Anno == "FALSE" & HURs_FISH$feature == "5UTR") == "FALSE" ,]
+  #print(paste(i,nrow(HURs_FISH)))
+  
+  HURs_FISH$Unique_Anno <-  ave( seq_along(HURs_FISH$IDs), HURs_FISH$IDs, FUN = length ) == 1
+  HURs_FISH <- HURs_FISH[(HURs_FISH$Unique_Anno == "FALSE" & HURs_FISH$feature == "3UTR") == "FALSE" ,]
+  #print(paste(i,nrow(HURs_FISH)))
+  
+  HURs_FISH$peak_uniqueness <- ave( seq_along(HURs_FISH$Peak_ID), HURs_FISH$Peak_ID, FUN = length ) == 1
+  #print(paste(i,nrow(HURs_FISH)))
+
+  HURs_FISH <- HURs_FISH[grep("pseudogene",HURs_FISH$gene_type,invert = T),]
+  HURs_FISH <- HURs_FISH[grep("tRNA|rRNA",HURs_FISH$gene_type,invert = T),]
+  #print(paste(i,nrow(HURs_FISH)))
+  
+
+  
+
+HURs_FISH$Peak_History <- paste(HURs_FISH$Original_Peak_For, HURs_FISH$original_Peak_IDs, sep=";") 
+
+HURs_FISH <- HURs_FISH[,c("chr","Summit_start","Summit_end","Peak_ID","RBP","strand","N_orthologs","hs_rep1","hs_rep2","dr_rep1","dr_rep2","Halo","Input","positive_fa","negative_fa","Ortholog_Average_BS","Ortholog_Average_FCH","Ortholog_Average_FCI","gene_ID","feature","gene_name","gene_type","hs_Mean_FCH","dr_Mean_FCH","hs_Mean_FCI","dr_Mean_FCI","hs_BS","dr_BS","Peak_History")]
+
+
+write.table(HURs_FISH,file = "/Users/ionutatanasoai/Documents/RAPseq_Manuscript/FIGURE_3/Metafile/HuRs_FISH.metafile.ANNOTATED.final.bed", col.names = T, row.names = F, sep="\t")
+
+
+```
