@@ -15,5 +15,8 @@ The C.hisat2_remov_rRNA_tRNA.sh bash script uses hisat2 to align read 1 against 
 
 After the read 1 FASTQ File has beed depleted of rRNA and tRNA reads, the read 2 FASTQ File is parsed to select the mates that correspond to the ones filtered in the read 1 File using unix awk and join commands highlithed in the D.select_read2.sh script.
 
-## 4. 
+## 4. Genome Alignment -> E.hisat2_genome_alignment_uniq.mapped_rmdup.sh
+The E.hisat2_genome_alignment_uniq.mapped_rmdup.sh script makes use of hisat2, samtools and umi_tools to align the rRNA and tRNA depleted mates to a reference genome, retrieve uniquely mapping reads and remove PCR duplicates based on the UMIs. The alignment considers default hisat2 parameters and outputs bam formatted files. Samtools is used to convert the bam to sam and the "NH:i:1" flag reported by hisat2 is used to retrieve uniquely mapping reads. umi_tools dedup is then used to remove PCR duplicates.
+
+## 5. 
 
