@@ -41,3 +41,37 @@ J.scoring_candidate_coordinates.sh uses bedtools map to score the summits with t
 To the 14 column bed file produced in section 8, two more columns will be added by K.get_sequences.sh representing the sequence underlying the candidate coordinate (column 15) and the sequence of control sites taken 1000 nucleotides 3' from the summit of the candidate region (column 16). Both sequence column represent 200 nucleotide bins centered around the peak summit (column 15) or 1000 nucleotides 3' of it (column 16). To retrieve the sequences bedtools getfasta was used and the strandness option -s was used to retrive strand specific sequences.
 
 ## Peak Annotation and Filtering
+#### 10. Filter and Annotate Peaks -> L.Peak_annotation_n_filtering.R
+In order to annotate and filter the final candidate coordinates from section 9, R is used to compute enrichments and correct the p-values computed by macs2 (section 6) to filter the coordinates. The R package GenomicFeatures is used to parse a gencode GTF annotation file and annotate the filtered candidate coordinates with gene names, gene IDs and relative RNA features (CDS, ncRNA, introns, etc.). In order to ensure unique annotations, a feature priority is given in the following order: CDS > 3'UTR > 5'UTR > ncRNA > intron. The L.Peak_annotation_n_filtering.R is an R script that contains all the code necessary to load all R packages used in the RAP-seq manuscript and to read in the candidate coordinates from section 9 and output a final filtered and annotated 32 column tabular file containing RBP binding sites. The tabuler file has the following columns:
+01. chromosome 
+02. start 
+03. end 
+04. Peak_ID 
+05. RBP, 
+06. strand 
+07. Summit_start 
+08. Summit_end
+09. Replicate 1 normalized pileup signal
+10. Replicate 2 normalized pileup signal
+11. Halo normalized pileup signal
+12. Input normalized pileup signal
+13. -log10pval_rep1 
+14. -log10pval_rep2 
+15. -log10FDR_rep1 BH multiple testing correction of the macs2 computed
+16. -log10FDR_rep2 BH multiple testing correction of the macs2 computed
+17. Fold Change of the normalized pileup signals over Halo for Replicate 1
+18. Fold Change of the normalized pileup signals over Halo for Replicate 1
+19. Fold Change of the normalized pileup signals over Input for Replicate 1
+20. Fold Change of the normalized pileup signals over Input for Replicate 1
+21. The average Fold Change over Halo 
+22. The average Fold Change over Input
+23. Binding Score = The average Fold Change considering both Halo and Input controls weighed by the log2 normailzed average pileup signals of both replicates
+24. Gene ENSEMBL ID, 
+25. Gene Name
+26. Gene Type 
+27. RNA fetaure (intron, CDS, UTR, etc) 
+28. Gene Binding Score = The sum of all Binding Scores of all Binding Sites mapping to one gene 
+29. Local IDR computed using the replicate -log10pvalues 
+30. Global IDR computed using the replicate -log10pvalues
+31. the sequence surrounding the RBP binsing site (200 nucleotide bin centered around the peak summit) 
+33. the sequence of adjacent control unbound sites (200 nucleotide bin taken 1000 nucleotides 3' of the binding site)
