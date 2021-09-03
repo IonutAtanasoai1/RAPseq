@@ -33,8 +33,6 @@ do
 	
 	tail -n+2 $(echo ${NAMES[$i]})*rep1*scaled.bedgraph | grep 'chr' | bedtools sort > rep1.bedgraph.txt
 	tail -n+2 $(echo ${NAMES[$i]})*rep2*scaled.bedgraph | grep 'chr' | bedtools sort > rep2.bedgraph.txt
-	tail -n+2 $(echo ${NAMES[$i]})*rep1*input.bdg | grep 'chr' | bedtools sort > rep1.subed.txt
-    tail -n+2 $(echo ${NAMES[$i]})*rep2*input.bdg | grep 'chr' | bedtools sort > rep2.subed.txt
 
 
 	bedtools sort -i $(echo ${NAMES[$i]})*rep1*pvalues*.bdg | grep 'chr' > sorted.pvalues_rep1.txt
@@ -49,12 +47,9 @@ do
 	bedtools map -a c.txt -b rep2.bedgraph.txt -c 4 -o mean > d.txt
 	bedtools map -a d.txt -b Halo.bedgraph -c 4 -o mean > e.txt
 	bedtools map -a e.txt -b Input.bedgraph -c 4 -o mean > f.txt
-	bedtools map -a f.txt -b rep1.subed.txt -c 4 -o mean > g.txt
-	bedtools map -a	g.txt -b rep2.subed.txt	-c 4 -o mean > h.txt
-	bedtools map -a h.txt -b Halo.sub.bedgraph -c 4 -o mean > i.txt
 
 
-	cat i.txt > $(echo ${NAMES[$i]}).scored.bed
+	cat f.txt > $(echo ${NAMES[$i]}).scored.bed
 
 	rm *txt
 
