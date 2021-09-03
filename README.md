@@ -43,12 +43,12 @@ To the 14 column bed file produced in section 8, two more columns will be added 
 ## Peak Annotation and Filtering
 #### 10. Filter and Annotate Peaks -> L.Peak_annotation_n_filtering.R
 In order to annotate and filter the final candidate coordinates from section 9, R is used to compute enrichments and correct the p-values computed by macs2 (section 6) to filter the coordinates. The R package GenomicFeatures is used to parse a gencode GTF annotation file and annotate the filtered candidate coordinates with gene names, gene IDs and relative RNA features (CDS, ncRNA, introns, etc.). In order to ensure unique annotations, a feature priority is given in the following order: CDS > 3'UTR > 5'UTR > ncRNA > intron. The L.Peak_annotation_n_filtering.R is an R script that contains all the code necessary to load all R packages used in the RAP-seq manuscript and to read in the candidate coordinates from section 9 and output a final filtered and annotated 32 column tabular file containing RBP binding sites. The tabuler file has the following columns:
-01. chromosome 
-02. start 
-03. end 
+01. Chromosome 
+02. Start 
+03. End 
 04. Peak_ID 
 05. RBP, 
-06. strand 
+06. Strand 
 07. Summit_start 
 08. Summit_end
 09. Replicate 1 normalized pileup signal
@@ -73,5 +73,5 @@ In order to annotate and filter the final candidate coordinates from section 9, 
 28. Gene Binding Score = The sum of all Binding Scores of all Binding Sites mapping to one gene 
 29. Local IDR computed using the replicate -log10pvalues 
 30. Global IDR computed using the replicate -log10pvalues
-31. the sequence surrounding the RBP binsing site (200 nucleotide bin centered around the peak summit) 
-33. the sequence of adjacent control unbound sites (200 nucleotide bin taken 1000 nucleotides 3' of the binding site)
+31. The sequence surrounding the RBP binsing site (200 nucleotide bin centered around the peak summit) 
+33. The sequence of adjacent control unbound sites (200 nucleotide bin taken 1000 nucleotides 3' of the binding site)
