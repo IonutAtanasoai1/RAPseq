@@ -38,3 +38,6 @@ I.strand_read_counts.sh takes the bed file from above and its corresponding bam 
 J.scoring_candidate_coordinates.sh uses bedtools map to score the summits with the scaled pileups from section 5 for both RBP replicates, HaloTag and Input controls and the respective replicate p-values computed in section 6. It adds 5 extra columns after the 8th column of the bed file output from section 7. 9th: Replicate 1 p-values (-log10 scale), 10th: Replicate 2 p-value (-log10 scale), 11th: Replicate 1 Normalized pileup signal, 12th: Replicate 2 Normalized pileup signal, 13th: HaloTag Normalized pileup signal and 14th: Input Normalized pileup signal.
 
 #### 9. Get The Sequence Of Candidate Coordinates -> K.get_sequences.sh
+To the 14 column bed file produced in section 8, two more columns will be added by K.get_sequences.sh representing the sequence underlying the candidate coordinate (column 15) and the sequence of control sites taken 1000 nucleotides 3' from the summit of the candidate region (column 16). Both sequence column represent 200 nucleotide bins centered around the peak summit (column 15) or 1000 nucleotides 3' of it (column 16). To retrieve the sequences bedtools getfasta was used and the strandness option -s was used to retrive strand specific sequences.
+
+## Peak Annotation and Filtering
