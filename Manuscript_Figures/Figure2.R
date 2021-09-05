@@ -121,11 +121,10 @@ Figure 2A
 ```{r}
 
 ## the following lines reconstructs the sequence motif logos from PWM published by the relative studies
-## the RAP and CLIP PWM are computed by DREME 
+## the RAP and CLIP PWM are computed by DREME with the parameters specified in the manuscript methods section. For YBX3 in order to obtain the ACAHC motif, one background 4 mers (GAAC, masked to NNNN) needed to be masked. In bash: "cat fasta.file.fa | sed 's/GAAC/NNNN/g' > masked.fasta.file.fa"
 ## The RBFOX2 GMAUG motif is recomputed by weighing the abundance of GCAUG and GAAUG with the binding scores these motifs have in the peaks they are present
 ## de novo motif discovery was performed only for RAPseq and eCLIPseq 
 ## in figure 2A the logos for RBNS were drawn based on the logos published on the ENCODE Project website; PWM were not available
-
 
 
 
