@@ -60,9 +60,9 @@ In order to annotate and filter the final candidate coordinates from section 9, 
 15. -log10FDR_rep1 BH multiple testing correction of the macs2 computed
 16. -log10FDR_rep2 BH multiple testing correction of the macs2 computed
 17. Fold Change of the normalized pileup signals over Halo for Replicate 1
-18. Fold Change of the normalized pileup signals over Halo for Replicate 1
+18. Fold Change of the normalized pileup signals over Halo for Replicate 2
 19. Fold Change of the normalized pileup signals over Input for Replicate 1
-20. Fold Change of the normalized pileup signals over Input for Replicate 1
+20. Fold Change of the normalized pileup signals over Input for Replicate 2
 21. The average Fold Change over Halo 
 22. The average Fold Change over Input
 23. Binding Score = The average Fold Change considering both Halo and Input controls weighed by the log2 normailzed average pileup signals of both replicates
