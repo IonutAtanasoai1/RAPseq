@@ -57,8 +57,8 @@ In order to annotate and filter the final candidate coordinates from section 9, 
 12. Input normalized pileup signal
 13. -log10pval_rep1 
 14. -log10pval_rep2 
-15. -log10FDR_rep1 BH multiple testing correction of the macs2 computed
-16. -log10FDR_rep2 BH multiple testing correction of the macs2 computed
+15. -log10FDR_rep1 BH multiple testing correction of the macs2 computed p values
+16. -log10FDR_rep2 BH multiple testing correction of the macs2 computed p values
 17. Fold Change of the normalized pileup signals over Halo for Replicate 1
 18. Fold Change of the normalized pileup signals over Halo for Replicate 2
 19. Fold Change of the normalized pileup signals over Input for Replicate 1
