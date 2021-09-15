@@ -1,4 +1,4 @@
-# RNA Affinity Purification and Sequencing (RAP-seq)
+# RNA Affinity Purification and Sequencing (RAPseq)
 RAP-seq is an in vitro binding assay between a HaloTag fused recombinant RNA Binding Protein (RBP) of interest and a pool of cellular extracted native total RNA. The pool of total RNA, previously to being incubated with the RBP is fragment to a normal distribution described by a median of ~40 nucleotides. After the binding assay is performed, the bound RNA molecules are recovered and cloned into an Illumina compatibile sequencing RNA library. Illumina NGS is used to sequence the bound molecules and deconvolute their identity by alignment to the respective reference genome of the species from which the RNA was first extracted. The following lines describe what each script used for processing the NGS data and deconvoluting the identity of the bound RNA molecules does.
 
 <img src="RAPseq_git_cartoon1.png" width=1000>
