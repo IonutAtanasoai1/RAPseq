@@ -7,9 +7,6 @@ RAP-seq is an in vitro binding assay between a HaloTag fused recombinant RNA Bin
 RAP-seq NGS data processing involves 3 major steps (FASTQ File processing, Alignment to a reference genome and Peak calling) that takes as input FASTQ Files and provides as output a BED Files representing genomic coordinates of candidate RBP binding sites and their relative signals and significance in each of the RBP replicate binding assay and the two controls, namely the Input and HaloTag only libraries. These candidate binding sites need to be further annotated and filtered for multiple testing corrected significance and fold change thresholds.
 
 ## Read Processing
-
-<img src="Read_processing_git_cartoon.png" width=1000>
-
 #### 1. Trim Adapters -> A.trim_PE.sh
 The first step regards removal of the NEXTFLEX v3 small RNA library preparation kit adapters using A.trim_PE.sh. This bash script makes use of cutadapt to trim the adapters, perform a base quality filter and output all reads that are 20 or more nucleotides long. The length filter accounts for the presence of the library prep kit inserted UMIs at the 5' and 3' end of the RNA molecules.
 
@@ -19,6 +16,8 @@ B.extract_UMIs.sh makes use of awk to remove the first 4 bases of both read 1 an
 #### 3. Removal of rRNA and tRNA Mapping Reads -> C.hisat2_remov_rRNA_tRNA.sh and D.select_read2.sh
 The C.hisat2_remov_rRNA_tRNA.sh bash script uses hisat2 to align read 1 against a collection of rRNA (UCSC table browser, genome version hg38) and tRNA sequences (GtRNAdb). The collection of sequences is available in the RAP-seq manuscript supplementary files. The script will output all reads that do not aligh to rRNAs and tRNAs.
 After the read 1 FASTQ File has beed depleted of rRNA and tRNA reads, the read 2 FASTQ File is parsed to select the mates that correspond to the ones filtered in the read 1 File using unix awk and join commands highlithed in the D.select_read2.sh script.
+
+<img src="Read_processing_git_cartoon.png" width=1000>
 
 ## Alignment
 #### 4. Reference Genome Alignment -> E.hisat2_genome_alignment_uniq.mapped_rmdup.sh
