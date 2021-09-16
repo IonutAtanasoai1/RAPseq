@@ -31,7 +31,7 @@ After having built the bedgraphs, macs2 bgdcmp will take each file and subtract 
 These candidate regions are kept for future filtering if they are present in both replicates and their summits reside at most 10 nucleotides from each other. 
 Considering that the replicates are used to identify candidate regions that will be further filtered, the user should always have ideally 2 replicates per RBP, otherwise the thresholds for filtering will need to be optimised in a case by case basis. The output of this script will be a 7 column bed file with the following columns: chromosome, start, end, summit replicate 1, summit replicate 2, width, distance between summits.
 
-<img src="Peak_calling_git_Cartoon.png" width=1000>
+<img src="Peak_calling_git_Cartoon1.png" width=1000>
 
 #### 6. Compute P-values -> G.get_pvals_from_bedgraphs.sh
 G.get_pvals_from_bedgraphs.sh takes as input the pileups computed by bedtools genomecov in section 5 of this readme file and subtracts the Input signal from both RBP and HaloTag libraries and then used macs2 bdgcmp with the argument -m ppois to compute the significance of signal enrichments in the RBP libraries over the HaloTag control library.
