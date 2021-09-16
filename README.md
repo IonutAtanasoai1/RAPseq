@@ -13,11 +13,13 @@ The first step regards removal of the NEXTFLEX v3 small RNA library preparation 
 #### 2. UMI Extraction -> B.extract_UMIs.sh
 B.extract_UMIs.sh makes use of awk to remove the first 4 bases of both read 1 and read 2, paste them together and append the 8 nucleotide UMI to both read 1 and read 2 read names.
 
+<img src="Trim_git_Cartoon.png" width=1000>
+
 #### 3. Removal of rRNA and tRNA Mapping Reads -> C.hisat2_remov_rRNA_tRNA.sh and D.select_read2.sh
 The C.hisat2_remov_rRNA_tRNA.sh bash script uses hisat2 to align read 1 against a collection of rRNA (UCSC table browser, genome version hg38) and tRNA sequences (GtRNAdb). The collection of sequences is available in the RAP-seq manuscript supplementary files. The script will output all reads that do not aligh to rRNAs and tRNAs.
 After the read 1 FASTQ File has beed depleted of rRNA and tRNA reads, the read 2 FASTQ File is parsed to select the mates that correspond to the ones filtered in the read 1 File using unix awk and join commands highlithed in the D.select_read2.sh script.
 
-<img src="Read_processing_git_cartoon.png" width=1000>
+<img src="remove_rRNA_n_tRNA_git_Cartoon.png" width=1000>
 
 ## Alignment
 #### 4. Reference Genome Alignment -> E.hisat2_genome_alignment_uniq.mapped_rmdup.sh
